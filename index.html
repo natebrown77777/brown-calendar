@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brown Calendar</title>
+<meta name="description" content="A 13-month calendar counted from the Nativity, with day notes, repeating tasks and reminders.">
+<meta name="theme-color" content="#2e3a78">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brown Calendar">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a header with tabs, a 7-column month grid of perennial weeks, and a day panel beside it (below it on phones). Floating ? and + buttons sit at the bottom corners. */
+:root{
+  --bg:#eef0f6; --surface:#ffffff; --surface-2:#f6f7fb; --ink:#1c2036; --muted:#5d6380; --line:#d8dbe8;
+  --accent:#a8720c; --accent-soft:#f6ead2; --accent-ink:#ffffff;
+  --indigo:#2e3a78; --indigo-soft:#e3e7f8; --danger:#b3261e;
+  --font-display:"Cinzel", "Trajan Pro", Georgia, serif;
+  --font-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11142a; --surface:#1a1e39; --surface-2:#151931; --ink:#e7e8f3; --muted:#9aa0bf; --line:#2d3356;
+  --accent:#e2b24c; --accent-soft:#3a3120; --accent-ink:#1a1405;
+  --indigo:#9fb0ff; --indigo-soft:#262d55; --danger:#ff8a80; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#11142a; --surface:#1a1e39; --surface-2:#151931; --ink:#e7e8f3; --muted:#9aa0bf; --line:#2d3356;
+  --accent:#e2b24c; --accent-soft:#3a3120; --accent-ink:#1a1405;
+  --indigo:#9fb0ff; --indigo-soft:#262d55; --danger:#ff8a80; color-scheme:dark;}
+
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top, 0px);-webkit-text-size-adjust:100%}
+body{margin:0;font-size:14px;min-height:100vh;overscroll-behavior-y:none}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 calc(96px + env(safe-area-inset-bottom, 0px));touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto}
+
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:20px 14px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{font-family:var(--font-display);font-weight:700;font-size:1.6rem;letter-spacing:.06em;margin:0;line-height:1.1}
+.brand .tagline{color:var(--muted);font-size:.85rem}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs a{text-decoration:none;color:var(--muted);padding:7px 14px;border-radius:999px;font-weight:600;font-size:.9rem;white-space:nowrap}
+.tabs a[aria-current="page"]{background:var(--indigo);color:var(--surface)}
+.status{font-size:.78rem;color:var(--muted);width:100%}
+
+/* Calendar */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+@media (min-width:920px){.layout{grid-template-columns:minmax(0,1fr) 360px;align-items:start}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.cal{padding:16px}
+.monthbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.monthbar h2{min-width:0;font-family:var(--font-display);font-weight:600;font-size:1.45rem;letter-spacing:.04em;margin:0;text-wrap:balance}
+.monthbar .num{color:var(--muted);font-family:var(--font-body);font-weight:500;font-size:1rem;letter-spacing:0}
+.monthbar .span{color:var(--muted);font-size:.85rem;width:100%;order:3}
+.navbtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);font-size:1.1rem;line-height:1;display:grid;place-items:center}
+.navbtn:hover{border-color:var(--indigo)}
+.spacer{flex:1}
+.pill{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:6px 12px;font-weight:600;font-size:.85rem}
+.pill:hover{border-color:var(--indigo)}
+.jump{display:flex;gap:6px;align-items:center}
+.jump select,.jump input{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:5px 8px;font-size:.88rem}
+.jump input{width:80px}
+
+.special{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:1px dashed var(--accent);background:var(--accent-soft);border-radius:var(--r);padding:10px 14px;margin-block:0 10px}
+.special.end{margin-block:10px 0}
+.special b{font-family:var(--font-display);font-weight:600;letter-spacing:.04em}
+.special small{color:var(--muted);display:block;font-size:.8rem}
+.special.sel{border-style:solid;box-shadow:0 0 0 2px var(--accent) inset}
+.special .marks{display:flex;gap:4px}
+
+.weekhead,.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.weekhead div{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:4px}
+.weekhead .short{display:none}
+@media (max-width:640px){.weekhead .long{display:none}.weekhead .short{display:inline}}
+.day{position:relative;min-height:78px;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:6px 7px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.day:hover{border-color:var(--indigo)}
+.day .n{font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.day .g{font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day .marks{display:flex;gap:3px;flex-wrap:wrap;margin-top:auto}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--indigo)}
+.dot.note{border-radius:2px;background:var(--accent)}
+.day.today{background:var(--indigo-soft);border-color:var(--indigo)}
+.day.today .n{color:var(--indigo)}
+.day.sel{box-shadow:0 0 0 2px var(--accent) inset;border-color:var(--accent)}
+.day.rest{background:var(--surface)}
+@media (max-width:640px){.day{min-height:58px;padding:4px 5px}.day .n{font-size:.95rem}.day .g{font-size:.62rem}.cal{padding:12px}}
+#gGrid .g{white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.day.outside{border-style:dashed;border-color:var(--accent)}
+.dirbtn{align-self:flex-start;border:2px solid var(--indigo);background:var(--indigo-soft);color:var(--indigo);border-radius:999px;padding:8px 16px;font-weight:700;font-size:.95rem}
+.dirbtn:hover{background:var(--surface)}
+details.how{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+details.how summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:.88rem}
+details.how .rules{margin-top:8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.78rem;margin-top:12px;align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+
+/* Day panel */
+.panel{padding:18px;display:flex;flex-direction:column;gap:16px}
+.panel h3{font-family:var(--font-display);font-weight:600;font-size:1.35rem;letter-spacing:.03em;margin:0;text-wrap:balance}
+.panel .meta{color:var(--muted);font-size:.88rem}
+.sectionlabel{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tasklist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tasklist button{width:100%;text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:1px}
+.tasklist button:hover{border-color:var(--indigo)}
+.tasklist .tn{font-weight:600;overflow-wrap:anywhere}
+.tasklist .ts{font-size:.78rem;color:var(--muted)}
+.empty{color:var(--muted);font-size:.88rem;margin:6px 0 0}
+.linkbtn{background:none;border:0;color:var(--indigo);font-weight:600;font-size:.8rem;padding:2px 0;text-transform:none;letter-spacing:0}
+textarea#note{width:100%;min-height:200px;resize:vertical;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:10px 12px;line-height:1.5;margin-top:6px}
+.notefoot{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.reminders{border:1px solid var(--accent);background:var(--accent-soft);border-radius:var(--r);padding:10px 12px;margin-bottom:14px}
+.reminders ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.reminders li{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.9rem}
+
+/* Convert tab */
+.convert{padding:22px;max-width:720px;display:flex;flex-direction:column;gap:18px}
+.convert h2{font-family:var(--font-display);font-weight:600;margin:0;font-size:1.4rem;letter-spacing:.04em}
+.convert p{margin:0;color:var(--muted);max-width:62ch}
+.fields{display:flex;flex-wrap:wrap;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field select,.field input{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
+.result{border-top:1px solid var(--line);padding-top:16px}
+.result .big{font-family:var(--font-display);font-size:1.5rem;font-weight:600;letter-spacing:.02em;text-wrap:balance}
+.result .small{color:var(--muted);font-size:.9rem}
+.err{color:var(--danger);font-size:.88rem}
+.rules{font-size:.88rem;color:var(--muted);display:grid;gap:6px;margin:0;padding-left:18px}
+
+/* Floating buttons */
+.bottombar{position:fixed;left:0;right:0;bottom:0;z-index:35;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.bottombar .tabs{flex:0 1 auto}
+.fab{width:52px;height:52px;flex:none;border-radius:50%;border:0;font-size:1.6rem;font-weight:700;display:grid;place-items:center;box-shadow:0 4px 12px rgba(20,24,50,.2)}
+.fab.left{background:var(--surface);color:var(--indigo);border:2px solid var(--indigo)}
+.fab.right{background:var(--accent);color:var(--accent-ink)}
+.installbar{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--indigo);background:var(--indigo-soft);border-radius:var(--r);padding:10px 12px;font-size:.9rem}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+#remBox:empty{display:none}
+.backbtn{display:none;align-self:flex-start;background:none;border:0;color:var(--indigo);font-weight:700;font-size:1rem;padding:4px 0}
+@media (max-width:919px){
+  header.top{padding-block:14px 8px}
+  .brand h1{font-size:1.2rem}
+  .brand .tagline{display:none}
+  .cal{border-radius:12px;padding:10px}
+  .monthbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;margin-bottom:8px;align-items:center}
+  .monthbar h2{font-size:1.2rem;text-align:center;grid-column:2;grid-row:1}
+  .monthbar h2 .num{display:block;font-size:.8rem}
+  .monthbar .navbtn{width:42px;height:42px;grid-row:1}
+  .monthbar .navbtn:first-child{grid-column:1}
+  .monthbar h2 + .navbtn{grid-column:3}
+  .monthbar .spacer{display:none}
+  .jump{grid-column:1 / 3;grid-row:2;min-width:0}
+  .jump select{flex:1;min-width:0}
+  .monthbar .pill{grid-column:3;grid-row:2}
+  .monthbar .span{grid-column:1 / -1;grid-row:3;text-align:center}
+  .day{min-height:64px}
+  .legend{font-size:.72rem;gap:10px}
+  #panel{position:fixed;inset:0;z-index:30;border-radius:0;border:0;overflow:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(96px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    transform:translateY(100%);visibility:hidden;transition:transform .22s ease, visibility .22s}
+  body.sheet #panel{transform:none;visibility:visible}
+  .backbtn{display:block}
+  textarea#note{min-height:40vh}
+}
+
+/* Modals */
+.overlay{position:fixed;inset:0;background:rgba(10,12,28,.5);display:flex;align-items:flex-end;justify-content:center;z-index:40;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
+@media (min-width:640px){.overlay{align-items:center}}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:500px;max-height:calc(100% - 8px);overflow:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.modal h2{font-family:var(--font-display);font-weight:600;font-size:1.3rem;margin:0;letter-spacing:.04em}
+.modal .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.modal input[type=text],.modal select,.modal input[type=number],.modal input[type=date]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
+.modal #tName{width:100%}
+.num3{width:4.2em;text-align:center;font-variant-numeric:tabular-nums}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:600}
+.switch{position:relative;width:46px;height:26px;border-radius:999px;border:0;background:var(--line);flex:none;transition:background .15s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:transform .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch[aria-checked="true"]{background:var(--indigo)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.sub{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--surface-2);border-radius:var(--r);border:1px solid var(--line)}
+.sub .hint{font-size:.78rem;color:var(--muted)}
+.tiny{width:26px;height:26px;border-radius:50%;border:1px solid var(--indigo);background:var(--surface);color:var(--indigo);font-weight:700;line-height:1;display:grid;place-items:center;padding:0;font-size:1rem}
+.xbtn{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);line-height:1;padding:0}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border-radius:999px;padding:9px 18px;font-weight:600;border:1px solid var(--line);background:var(--surface-2)}
+.btn.primary{background:var(--indigo);color:var(--surface);border-color:var(--indigo)}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent;margin-right:auto}
+.ghint{font-size:.8rem;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Brown Calendar</h1>
+      <span class="tagline">13 months of 28 days, counted from the Nativity</span>
+    </div>
+    <div class="status" id="status">Loading…</div>
+    <button class="pill" id="installBtn" hidden>Install app</button>
+  </header>
+
+  <section id="viewCal" class="layout">
+   <div class="col">
+    <div class="installbar" id="iosHint" hidden><span>To install: tap <b>Share</b>, then <b>Add to Home Screen</b>.</span><button class="linkbtn" id="iosHintClose">Got it</button></div>
+    <div id="remBox"></div>
+    <div class="card cal" id="gregCard" hidden>
+      <div class="monthbar">
+        <button class="navbtn" id="gPrev" aria-label="Previous month">‹</button>
+        <h2 id="gTitle">January</h2>
+        <button class="navbtn" id="gNext" aria-label="Next month">›</button>
+        <span class="spacer"></span>
+        <div class="jump">
+          <select id="gjMonth" aria-label="Gregorian month"></select>
+          <input id="gjYear" type="number" aria-label="Gregorian year">
+        </div>
+        <button class="pill" id="gTodayBtn">Today</button>
+        <div class="span" id="gSpan"></div>
+      </div>
+      <div class="weekhead" id="gWeekhead"></div>
+      <div class="grid" id="gGrid"></div>
+      <div class="legend">
+        <span><i class="dot"></i>Task</span>
+        <span><i class="dot note"></i>Note</span>
+        <span>Small text shows the Brown date</span>
+      </div>
+    </div>
+
+    <div class="card cal" id="brownCard">
+      <div class="monthbar">
+        <button class="navbtn" id="prev" aria-label="Previous month">‹</button>
+        <h2 id="mTitle">Peter</h2>
+        <button class="navbtn" id="next" aria-label="Next month">›</button>
+        <span class="spacer"></span>
+        <div class="jump">
+          <select id="jMonth" aria-label="Month"></select>
+          <input id="jYear" type="number" aria-label="Year">
+        </div>
+        <button class="pill" id="todayBtn">Today</button>
+        <div class="span" id="mSpan"></div>
+      </div>
+      <div id="firstSlot"></div>
+      <div class="weekhead" id="weekhead"></div>
+      <div class="grid" id="grid"></div>
+      <div id="leapSlot"></div>
+      <div class="legend">
+        <span><i class="dot"></i>Task</span>
+        <span><i class="dot note"></i>Note</span>
+        <span>Small text shows the Gregorian date</span>
+      </div>
+      <details class="how">
+        <summary>How the Brown calendar works</summary>
+        <ul class="rules">
+          <li>The year begins on December 25, the Nativity. That day is the <b>1st Day of the Year</b> and sits outside the week.</li>
+          <li>Then come 13 months of 28 days: Peter, Andrew, James, John, Philip, Bartholomew, Thomas, Matthew, Jamalpha (James, son of Alphaeus), Thaddeus, Simon, Matthias and Stephen.</li>
+          <li>Every month has exactly four weeks: Lightday, Skyday, Treeday, Starday, Animalday, Humanday, Restday. Day 1 of every month is a Lightday.</li>
+          <li>Leap years follow the Gregorian rule (every 4 years, except centuries not divisible by 400). The extra <b>Leap Day</b> comes at the end of the year, also outside the week.</li>
+          <li>Brown year N runs from December 25 of Gregorian year N − 1 to December 24 of year N.</li>
+        </ul>
+      </details>
+    </div>
+
+   </div>
+    <aside class="card panel" id="panel">
+      <button class="backbtn" id="backBtn" type="button">‹ Calendar</button>
+      <div>
+        <h3 id="dTitle">—</h3>
+        <div class="meta" id="dMeta"></div>
+        <div class="meta" id="dGreg"></div>
+      </div>
+      <div>
+        <div class="sectionlabel"><span>Tasks</span><button class="linkbtn" id="addHere">+ Add task on this day</button></div>
+        <ul class="tasklist" id="tList"></ul>
+      </div>
+      <div>
+        <div class="sectionlabel"><label for="note">Notes for this day</label></div>
+        <textarea id="note" maxlength="5000" placeholder="Write anything about this day…"></textarea>
+        <div class="notefoot"><span id="noteSaved"></span><span id="noteCount">0 / 5000</span></div>
+      </div>
+    </aside>
+  </section>
+
+</div>
+
+<nav class="bottombar" aria-label="App">
+  <button class="fab left" id="fabQ" aria-label="Convert dates">?</button>
+  <div class="tabs" role="tablist">
+    <a href="#brown" id="tabCal" aria-current="page">Brown</a>
+    <a href="#gregorian" id="tabConv">Gregorian</a>
+  </div>
+  <button class="fab right" id="fabPlus" aria-label="Add a task">+</button>
+</nav>
+
+<div class="overlay" id="qModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="qTitle">
+    <h2 id="qTitle">Convert a date</h2>
+    <button type="button" class="dirbtn" id="qDir" aria-label="Switch conversion direction">Gregorian → Brown</button>
+    <div id="qG" class="field"><label for="qDate">Gregorian date</label><input type="date" id="qDate"></div>
+    <div id="qB" class="fields" hidden>
+      <div class="field"><label for="cMonth">Month</label><select id="cMonth"></select></div>
+      <div class="field"><label for="cDay">Day</label><select id="cDay"></select></div>
+      <div class="field"><label for="cYear">Year</label><input id="cYear" type="number" style="width:7em"></div>
+    </div>
+    <div class="result" id="qResult"></div>
+    <div class="actions">
+      <button class="btn" id="qClose">Close</button>
+      <button class="btn primary" id="qGo">Go to this day</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="tModal" hidden>
+  <form class="modal" role="dialog" aria-modal="true" aria-labelledby="tTitle" id="tForm" novalidate>
+    <h2 id="tTitle">New task</h2>
+    <div class="field"><label for="tName">Task name</label><input type="text" id="tName" maxlength="120" placeholder="e.g. Water the garden"></div>
+    <div class="field">
+      <label for="tMonth">Start date</label>
+      <div class="row">
+        <select id="tMonth" aria-label="Start month"></select>
+        <select id="tDay" aria-label="Start day"></select>
+        <input type="number" id="tYear" aria-label="Start year" style="width:6.5em">
+      </div>
+      <span class="ghint" id="tGreg"></span>
+    </div>
+
+    <div class="toggle"><span id="lblRepeat">Repeat</span><button type="button" class="switch" id="swRepeat" role="switch" aria-checked="false" aria-labelledby="lblRepeat"></button></div>
+    <div class="sub" id="repeatBox" hidden>
+      <div class="row">
+        <span>Every</span>
+        <input type="text" inputmode="numeric" maxlength="3" class="num3" id="rNum" value="1" aria-label="Repeat frequency">
+        <select id="rUnit" aria-label="Repeat unit"><option>day</option><option>week</option><option>month</option><option>year</option></select>
+      </div>
+    </div>
+
+    <div class="toggle"><span id="lblNotify">Notification</span><button type="button" class="switch" id="swNotify" role="switch" aria-checked="false" aria-labelledby="lblNotify"></button></div>
+    <div class="sub" id="notifyBox" hidden>
+      <div id="remRows" style="display:flex;flex-direction:column;gap:8px"></div>
+      <span class="hint" id="remHint"></span>
+    </div>
+    <div class="err" id="tErr"></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="tDelete" hidden>Delete</button>
+      <button type="button" class="btn" id="tCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save task</button>
+    </div>
+  </form>
+</div>
+<script src="brown-core.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+/* ---------- storage: everything stays on this phone ---------- */
+const store = { notes: {}, tasks: {} };
+function setStatus(t){ $("#status").textContent = t; }
+function loadLocal(){ try { const j = JSON.parse(localStorage.getItem("brownCalendar.v1") || "{}"); store.notes = j.notes || {}; store.tasks = j.tasks || {}; } catch (e) {} }
+function saveLocal(){
+  try { localStorage.setItem("brownCalendar.v1", JSON.stringify(store)); }
+  catch (e) { setStatus("Couldn't save. Your phone's storage may be full."); }
+  idbSet("tasks", store.tasks).catch(() => {});
+}
+function saveNote(k, text){ if (text) store.notes[k] = text; else delete store.notes[k]; saveLocal(); }
+function saveTask(t){ store.tasks[t.id] = t; saveLocal(); checkNotifications(); }
+function deleteTask(id){ delete store.tasks[id]; saveLocal(); }
+
+/* ---------- phone notifications ---------- */
+async function checkNotifications(){
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    await notifyDue(store.tasks, x => reg.showNotification("Brown Calendar", { body: reminderText(x), tag: x.key, icon: "icons/icon-192.png", badge: "icons/badge-96.png" }));
+  } catch (e) {}
+}
+async function setupBackgroundChecks(){
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!("periodicSync" in reg)) return;
+    const st = await navigator.permissions.query({ name: "periodic-background-sync" });
+    if (st.state === "granted") await reg.periodicSync.register("brown-reminders", { minInterval: 6 * 60 * 60 * 1000 });
+  } catch (e) {}
+}
+
+/* ---------- view state ---------- */
+const T = fromAbs(todayAbs());
+let view = { y: T.y, m: regular(T) ? T.m : (T.m === 0 ? 1 : 13) };
+let sel = { ...T };
+const TC = civilFromDays(todayAbs());
+let gview = { y: TC.y, m: TC.m };
+
+/* ---------- calendar render ---------- */
+function fillMonthSelect(el, includeSpecial){
+  el.innerHTML = "";
+  if (includeSpecial) el.add(new Option(FIRST, 0));
+  MONTHS.forEach((n, i) => el.add(new Option(n, i + 1)));
+  if (includeSpecial) el.add(new Option(LEAP, 14));
+}
+function fillDaySelect(el, m){
+  const cur = el.value;
+  el.innerHTML = "";
+  if (m === 0 || m === 14){ el.add(new Option("—", 1)); el.disabled = true; return; }
+  el.disabled = false;
+  for (let d = 1; d <= 28; d++) el.add(new Option(String(d), d));
+  if (cur && +cur >= 1 && +cur <= 28) el.value = cur;
+}
+function marksFor(b){
+  const frag = document.createDocumentFragment();
+  const tasks = Object.values(store.tasks).filter(t => occursOn(t, b));
+  tasks.slice(0, 4).forEach(() => { const i = document.createElement("i"); i.className = "dot"; frag.appendChild(i); });
+  if (store.notes[keyOf(b)]){ const i = document.createElement("i"); i.className = "dot note"; frag.appendChild(i); }
+  return frag;
+}
+function specialButton(b, cls){
+  const a = toAbs(b), btn = document.createElement("button");
+  btn.className = "special " + cls + (sameB(b, sel) ? " sel" : "");
+  const left = document.createElement("span");
+  const title = document.createElement("b"); title.textContent = b.m === 0 ? FIRST : LEAP;
+  const sm = document.createElement("small"); sm.textContent = `${gregLong(a)} · outside the week` + (sameB(b, T) ? " · Today" : "");
+  left.append(title, sm);
+  const marks = document.createElement("span"); marks.className = "marks"; marks.appendChild(marksFor(b));
+  btn.append(left, marks);
+  btn.addEventListener("click", () => selectDay(b));
+  return btn;
+}
+function renderCalendar(){
+  const { y, m } = view;
+  $("#mTitle").innerHTML = "";
+  $("#mTitle").append(MONTHS[m - 1] + " ");
+  const num = document.createElement("span"); num.className = "num"; num.textContent = `· month ${m} · ${y}`; $("#mTitle").append(num);
+  const a0 = toAbs({ y, m, d: 1 });
+  $("#mSpan").textContent = `${gregMed(a0)} – ${gregMed(a0 + 27)}`;
+  $("#jMonth").value = m; $("#jYear").value = y;
+
+  $("#firstSlot").innerHTML = ""; $("#leapSlot").innerHTML = "";
+  if (m === 1) $("#firstSlot").appendChild(specialButton({ y, m: 0, d: 1 }, ""));
+  if (m === 13 && isLeap(y)) $("#leapSlot").appendChild(specialButton({ y, m: 14, d: 1 }, "end"));
+
+  const g = $("#grid"); g.innerHTML = "";
+  for (let d = 1; d <= 28; d++){
+    const b = { y, m, d }, a = a0 + d - 1;
+    const btn = document.createElement("button");
+    btn.className = "day" + (sameB(b, T) ? " today" : "") + (sameB(b, sel) ? " sel" : "") + ((d - 1) % 7 === 6 ? " rest" : "");
+    btn.setAttribute("aria-label", `${brownName(b)}, ${WEEK[(d - 1) % 7]}, ${gregLong(a)}`);
+    const n = document.createElement("span"); n.className = "n"; n.textContent = d;
+    const gg = document.createElement("span"); gg.className = "g"; gg.textContent = gregShort(a);
+    const mk = document.createElement("span"); mk.className = "marks"; mk.appendChild(marksFor(b));
+    btn.append(n, gg, mk);
+    btn.addEventListener("click", () => selectDay(b));
+    g.appendChild(btn);
+  }
+}
+function renderPanel(fromSnapshot){
+  const a = toAbs(sel);
+  $("#dTitle").textContent = brownName(sel, false);
+  $("#dMeta").textContent = `${weekdayOf(sel)} · Year ${sel.y}` + (sameB(sel, T) ? " · Today" : "");
+  $("#dGreg").textContent = "Gregorian: " + gregLong(a);
+  const list = $("#tList"); list.innerHTML = "";
+  const tasks = Object.values(store.tasks).filter(t => occursOn(t, sel)).sort((x, y) => x.name.localeCompare(y.name));
+  if (!tasks.length){ const li = document.createElement("li"); li.className = "empty"; li.textContent = "No tasks on this day."; list.appendChild(li); }
+  tasks.forEach(t => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    const tn = document.createElement("span"); tn.className = "tn"; tn.textContent = t.name;
+    const ts = document.createElement("span"); ts.className = "ts";
+    ts.textContent = repeatText(t) + (t.notify && t.reminders?.length ? ` · ${t.reminders.length} reminder${t.reminders.length > 1 ? "s" : ""}` : "") + ` · started ${brownName(t.start)}`;
+    b.append(tn, ts); b.addEventListener("click", () => openTask(t)); li.appendChild(b); list.appendChild(li);
+  });
+  const ta = $("#note"), k = keyOf(sel);
+  if (!(fromSnapshot && document.activeElement === ta)){
+    ta.value = pendingNotes[k] !== undefined ? pendingNotes[k] : (store.notes[k] || "");
+    $("#noteSaved").textContent = "";
+  }
+  $("#noteCount").textContent = `${ta.value.length} / ${MAX_NOTE}`;
+  renderReminders();
+}
+function renderAll(fromSnapshot){ renderCalendar(); renderGreg(); renderPanel(fromSnapshot); }
+function selectDay(b){
+  flushNote();
+  sel = { ...b };
+  if (regular(b)) view = { y: b.y, m: b.m }; else view = { y: b.y, m: b.m === 0 ? 1 : 13 };
+  const c = civilFromDays(toAbs(b)); gview = { y: c.y, m: c.m };
+  renderAll();
+  if (window.innerWidth < 920){ document.body.classList.add("sheet"); $("#panel").scrollTop = 0; }
+}
+function shiftMonth(delta){
+  let mi = monthIdx({ y: view.y, m: view.m, d: 1 }) + delta;
+  const r = fromMonthIdx(mi, 1); view = { y: r.y, m: r.m }; renderCalendar();
+}
+
+/* ---------- notes ---------- */
+const pendingNotes = {}; let noteTimer = null, noteKey = null;
+function flushNote(){
+  if (noteTimer){ clearTimeout(noteTimer); noteTimer = null; }
+  if (noteKey !== null && pendingNotes[noteKey] !== undefined){
+    const k = noteKey, v = pendingNotes[k]; delete pendingNotes[k];
+    if ((store.notes[k] || "") !== v){ saveNote(k, v); $("#noteSaved").textContent = "Saved"; renderCalendar(); renderGreg(); }
+  }
+  noteKey = null;
+}
+$("#note").addEventListener("input", e => {
+  const ta = e.target; if (ta.value.length > MAX_NOTE) ta.value = ta.value.slice(0, MAX_NOTE);
+  const k = keyOf(sel); noteKey = k; pendingNotes[k] = ta.value;
+  $("#noteCount").textContent = `${ta.value.length} / ${MAX_NOTE}`;
+  $("#noteSaved").textContent = "Saving…";
+  clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 700);
+});
+$("#note").addEventListener("blur", flushNote);
+
+/* ---------- reminders (in-app list) ---------- */
+function dismissed(){ try { return JSON.parse(localStorage.getItem("brownCalendar.dismissed") || "{}"); } catch (e) { return {}; } }
+function renderReminders(){
+  const box = $("#remBox"); box.innerHTML = "";
+  const dis = dismissed(), due = dueOn(store.tasks, T).filter(x => !dis[x.key]);
+  if (!due.length) return;
+  const wrap = document.createElement("div"); wrap.className = "reminders";
+  const h = document.createElement("div"); h.className = "sectionlabel"; h.textContent = "Reminders for today"; wrap.appendChild(h);
+  const ul = document.createElement("ul");
+  due.forEach(x => {
+    const li = document.createElement("li"), s = document.createElement("span");
+    s.textContent = reminderText(x);
+    const b = document.createElement("button"); b.className = "linkbtn"; b.textContent = "Dismiss";
+    b.addEventListener("click", () => { const d = dismissed(); d[x.key] = 1; try { localStorage.setItem("brownCalendar.dismissed", JSON.stringify(d)); } catch (e) {} renderReminders(); });
+    li.append(s, b); ul.appendChild(li);
+  });
+  wrap.appendChild(ul); box.appendChild(wrap);
+}
+
+/* ---------- task modal ---------- */
+let editing = null, repeatOn = false, notifyOn = false, rems = [], delArmed = false;
+function setSwitch(el, on){ el.setAttribute("aria-checked", on ? "true" : "false"); }
+const digits = v => v.replace(/\D/g, "").slice(0, 3);
+function syncTaskDays(){ fillDaySelect($("#tDay"), +$("#tMonth").value); updateTGreg(); }
+function readStart(){ return { y: parseInt($("#tYear").value, 10), m: +$("#tMonth").value, d: (+$("#tMonth").value === 0 || +$("#tMonth").value === 14) ? 1 : +$("#tDay").value }; }
+function updateTGreg(){
+  const b = readStart();
+  if (!Number.isFinite(b.y)) { $("#tGreg").textContent = "Enter a year."; return; }
+  if (!validBrown(b)) { $("#tGreg").textContent = `${b.y} is not a leap year, so it has no Leap Day.`; return; }
+  $("#tGreg").textContent = `${weekdayOf(b)} · Gregorian ${gregLong(toAbs(b))}`;
+}
+function renderRems(){
+  const host = $("#remRows"); host.innerHTML = "";
+  rems.forEach((r, i) => {
+    const row = document.createElement("div"); row.className = "row";
+    const n = document.createElement("input"); n.type = "text"; n.inputMode = "numeric"; n.maxLength = 3; n.className = "num3"; n.value = r.n; n.id = "remN" + i; n.setAttribute("aria-label", `Reminder ${i + 1} amount`);
+    n.addEventListener("input", () => { n.value = digits(n.value); r.n = n.value === "" ? "" : +n.value; });
+    const u = document.createElement("select"); u.id = "remU" + i; u.setAttribute("aria-label", `Reminder ${i + 1} unit`);
+    ["day", "week", "month", "year"].forEach(x => u.add(new Option(x, x))); u.value = r.unit;
+    u.addEventListener("change", () => { r.unit = u.value; });
+    const lbl = document.createElement("span"); lbl.textContent = "before";
+    row.append(n, u, lbl);
+    if (rems.length > 1){
+      const x = document.createElement("button"); x.type = "button"; x.className = "xbtn"; x.textContent = "×"; x.setAttribute("aria-label", `Remove reminder ${i + 1}`);
+      x.addEventListener("click", () => { rems.splice(i, 1); renderRems(); }); row.appendChild(x);
+    }
+    if (i === rems.length - 1 && rems.length < MAX_REM){
+      const p = document.createElement("button"); p.type = "button"; p.className = "tiny"; p.textContent = "+"; p.setAttribute("aria-label", "Add another reminder");
+      p.addEventListener("click", () => { rems.push({ n: 1, unit: "day" }); renderRems(); document.getElementById("remN" + (rems.length - 1))?.focus(); });
+      row.appendChild(p);
+    }
+    host.appendChild(row);
+  });
+  $("#remHint").textContent = `${rems.length} of ${MAX_REM} reminders. Use 0 to be reminded on the day itself. Reminders appear here while the calendar is open.`;
+}
+function openTask(t){
+  editing = t || null; delArmed = false;
+  $("#tTitle").textContent = t ? "Edit task" : "New task";
+  $("#tDelete").hidden = !t; $("#tDelete").textContent = "Delete";
+  $("#tErr").textContent = "";
+  const s = t ? t.start : sel;
+  $("#tName").value = t ? t.name : "";
+  $("#tMonth").value = s.m; fillDaySelect($("#tDay"), s.m); $("#tDay").value = s.d; $("#tYear").value = s.y;
+  repeatOn = t ? !!t.repeat : false; setSwitch($("#swRepeat"), repeatOn); $("#repeatBox").hidden = !repeatOn;
+  $("#rNum").value = t && t.every ? t.every : 1; $("#rUnit").value = t && t.unit ? t.unit : "day";
+  notifyOn = t ? !!t.notify : false; setSwitch($("#swNotify"), notifyOn); $("#notifyBox").hidden = !notifyOn;
+  rems = t && t.reminders && t.reminders.length ? t.reminders.map(r => ({ ...r })) : [{ n: 1, unit: "day" }];
+  renderRems(); updateTGreg();
+  $("#tModal").hidden = false; $("#tName").focus();
+}
+function closeTask(){ $("#tModal").hidden = true; }
+$("#swRepeat").addEventListener("click", () => { repeatOn = !repeatOn; setSwitch($("#swRepeat"), repeatOn); $("#repeatBox").hidden = !repeatOn; });
+$("#swNotify").addEventListener("click", () => {
+  notifyOn = !notifyOn; setSwitch($("#swNotify"), notifyOn); $("#notifyBox").hidden = !notifyOn;
+  try { if (notifyOn && "Notification" in window && Notification.permission === "default") Notification.requestPermission().then(p => { if (p === "granted"){ setupBackgroundChecks(); checkNotifications(); } }).catch(() => {}); } catch (e) {}
+});
+$("#rNum").addEventListener("input", e => { e.target.value = digits(e.target.value); });
+$("#tMonth").addEventListener("change", syncTaskDays);
+$("#tDay").addEventListener("change", updateTGreg);
+$("#tYear").addEventListener("input", updateTGreg);
+$("#tCancel").addEventListener("click", closeTask);
+$("#tDelete").addEventListener("click", () => {
+  if (!editing) return;
+  if (!delArmed){ delArmed = true; $("#tDelete").textContent = "Tap again to delete"; return; }
+  deleteTask(editing.id); closeTask(); renderAll();
+});
+$("#tForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("#tName").value.trim(), start = readStart();
+  if (!name) return void ($("#tErr").textContent = "Give the task a name.");
+  if (!Number.isFinite(start.y)) return void ($("#tErr").textContent = "Enter a start year.");
+  if (!validBrown(start)) return void ($("#tErr").textContent = `${start.y} has no Leap Day. Pick another date or a leap year.`);
+  const every = parseInt($("#rNum").value, 10);
+  if (repeatOn && !(every >= 1)) return void ($("#tErr").textContent = "Repeat frequency must be at least 1.");
+  if (notifyOn && rems.some(r => r.n === "" || !Number.isFinite(+r.n))) return void ($("#tErr").textContent = "Fill in a number for each reminder.");
+  const t = {
+    id: editing ? editing.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    name, start: { y: start.y, m: start.m, d: start.d },
+    repeat: repeatOn, every: repeatOn ? every : 1, unit: $("#rUnit").value,
+    notify: notifyOn, reminders: notifyOn ? rems.map(r => ({ n: +r.n, unit: r.unit })) : [],
+    created: editing ? editing.created : Date.now()
+  };
+  saveTask(t); closeTask(); renderAll();
+});
+$("#fabPlus").addEventListener("click", () => openTask(null));
+$("#addHere").addEventListener("click", () => openTask(null));
+
+/* ---------- Convert dialog (? button), switchable direction ---------- */
+function isoOf(a){ const c = civilFromDays(a); return `${String(c.y).padStart(4, "0")}-${String(c.m).padStart(2, "0")}-${String(c.d).padStart(2, "0")}`; }
+let qTarget = null, qDirG2B = true;
+function updateQ(){
+  const out = $("#qResult"); out.innerHTML = ""; qTarget = null;
+  const big = document.createElement("div"); big.className = "big";
+  const sm = document.createElement("div"); sm.className = "small";
+  if (qDirG2B){
+    const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec($("#qDate").value);
+    if (!m){ out.innerHTML = '<div class="err">Pick a Gregorian date.</div>'; return; }
+    const a = daysFromCivil(+m[1], +m[2], +m[3]); qTarget = fromAbs(a);
+    big.textContent = brownName(qTarget);
+    sm.textContent = `${weekdayOf(qTarget)} · from ${gregLong(a)}`;
+  } else {
+    const mm = +$("#cMonth").value, b = { y: parseInt($("#cYear").value, 10), m: mm, d: (mm === 0 || mm === 14) ? 1 : +$("#cDay").value };
+    if (!Number.isFinite(b.y)){ out.innerHTML = '<div class="err">Enter a year.</div>'; return; }
+    if (!validBrown(b)){ const e = document.createElement("div"); e.className = "err"; e.textContent = `Year ${b.y} is not a leap year, so it has no Leap Day.`; out.appendChild(e); return; }
+    const a = toAbs(b); qTarget = b;
+    big.textContent = gregLong(a);
+    sm.textContent = `from ${brownName(b)} · ${weekdayOf(b)}`;
+  }
+  out.append(big, sm);
+}
+function setDir(g2b){
+  qDirG2B = g2b;
+  $("#qDir").textContent = g2b ? "Gregorian → Brown" : "Brown → Gregorian";
+  $("#qG").hidden = !g2b; $("#qB").hidden = g2b;
+  updateQ();
+}
+$("#qDir").addEventListener("click", () => {
+  // carry the date across when switching
+  if (qTarget){
+    if (qDirG2B){ $("#cMonth").value = qTarget.m; fillDaySelect($("#cDay"), qTarget.m); $("#cDay").value = qTarget.d; $("#cYear").value = qTarget.y; }
+    else $("#qDate").value = isoOf(toAbs(qTarget));
+  }
+  setDir(!qDirG2B);
+});
+$("#fabQ").addEventListener("click", () => {
+  $("#qDate").value = isoOf(toAbs(sel));
+  $("#cMonth").value = sel.m; fillDaySelect($("#cDay"), sel.m); $("#cDay").value = sel.d; $("#cYear").value = sel.y;
+  setDir(true); $("#qModal").hidden = false; $("#qDir").focus();
+});
+$("#qDate").addEventListener("input", updateQ);
+$("#cMonth").addEventListener("change", () => { fillDaySelect($("#cDay"), +$("#cMonth").value); updateQ(); });
+$("#cDay").addEventListener("change", updateQ);
+$("#cYear").addEventListener("input", updateQ);
+$("#qClose").addEventListener("click", () => { $("#qModal").hidden = true; });
+$("#qGo").addEventListener("click", () => { if (qTarget){ $("#qModal").hidden = true; selectDay(qTarget); } });
+[$("#qModal"), $("#tModal")].forEach(o => o.addEventListener("click", e => { if (e.target === o) o.hidden = true; }));
+document.addEventListener("keydown", e => { if (e.key === "Escape"){ if (!$("#qModal").hidden || !$("#tModal").hidden){ $("#qModal").hidden = true; $("#tModal").hidden = true; } else closeSheet(); } });
+
+/* ---------- Gregorian calendar ---------- */
+const GMONTHS = Array.from({ length: 12 }, (_, i) => gregFmt(daysFromCivil(2001, i + 1, 1), { month: "long" }));
+const GWEEK = Array.from({ length: 7 }, (_, i) => gregFmt(daysFromCivil(2023, 1, 1 + i), { weekday: "long" })); // Jan 1 2023 = Sunday
+const BSHORT = b => b.m === 0 ? FIRST : b.m === 14 ? LEAP : `${b.d} ${MONTHS[b.m - 1]}`;
+function gDaysIn(y, m){ return daysFromCivil(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, 1) - daysFromCivil(y, m, 1); }
+function renderGreg(){
+  const { y, m } = gview, a0 = daysFromCivil(y, m, 1), n = gDaysIn(y, m);
+  $("#gTitle").innerHTML = ""; $("#gTitle").append(GMONTHS[m - 1] + " ");
+  const num = document.createElement("span"); num.className = "num"; num.textContent = `· ${y}`; $("#gTitle").append(num);
+  const b0 = fromAbs(a0), b1 = fromAbs(a0 + n - 1);
+  $("#gSpan").textContent = `${brownName(b0)} – ${brownName(b1)}`;
+  $("#gjMonth").value = m; $("#gjYear").value = y;
+  const g = $("#gGrid"); g.innerHTML = "";
+  const lead = mod(a0 + 4, 7); // 0 = Sunday
+  for (let i = 0; i < lead; i++){ const e = document.createElement("div"); e.setAttribute("aria-hidden", "true"); g.appendChild(e); }
+  for (let d = 1; d <= n; d++){
+    const a = a0 + d - 1, b = fromAbs(a);
+    const btn = document.createElement("button");
+    btn.className = "day" + (sameB(b, T) ? " today" : "") + (sameB(b, sel) ? " sel" : "") + (!regular(b) ? " outside" : "");
+    btn.setAttribute("aria-label", `${gregLong(a)}, ${brownName(b)}`);
+    const nn = document.createElement("span"); nn.className = "n"; nn.textContent = d;
+    const gg = document.createElement("span"); gg.className = "g"; gg.textContent = BSHORT(b); gg.title = brownName(b);
+    const mk = document.createElement("span"); mk.className = "marks"; mk.appendChild(marksFor(b));
+    btn.append(nn, gg, mk);
+    btn.addEventListener("click", () => selectDay(b));
+    g.appendChild(btn);
+  }
+}
+function shiftGMonth(delta){ let t = gview.y * 12 + (gview.m - 1) + delta; gview = { y: Math.floor(t / 12), m: mod(t, 12) + 1 }; renderGreg(); }
+
+/* ---------- routing ---------- */
+function closeSheet(){ flushNote(); document.body.classList.remove("sheet"); }
+$("#backBtn").addEventListener("click", closeSheet);
+function addSwipe(el, fn){
+  let x0 = null, y0 = 0;
+  el.addEventListener("touchstart", e => { if (e.touches.length === 1){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
+  el.addEventListener("touchend", e => {
+    if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dy) < 50) fn(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}
+addSwipe($("#brownCard"), d => shiftMonth(d));
+addSwipe($("#gregCard"), d => shiftGMonth(d));
+function route(){
+  closeSheet();
+  const greg = location.hash === "#gregorian";
+  $("#brownCard").hidden = greg; $("#gregCard").hidden = !greg;
+  $("#tabCal").removeAttribute("aria-current"); $("#tabConv").removeAttribute("aria-current");
+  (greg ? $("#tabConv") : $("#tabCal")).setAttribute("aria-current", "page");
+}
+window.addEventListener("hashchange", route);
+
+/* ---------- boot ---------- */
+const wh = $("#weekhead");
+WEEK.forEach((w, i) => { const d = document.createElement("div"); d.innerHTML = `<span class="long">${w}</span><span class="short">${SHORT[i]}</span>`; d.title = w; wh.appendChild(d); });
+const gwh = $("#gWeekhead");
+GWEEK.forEach(w => { const d = document.createElement("div"); d.innerHTML = `<span class="long">${w}</span><span class="short">${w.slice(0, 3)}</span>`; d.title = w; gwh.appendChild(d); });
+fillMonthSelect($("#jMonth"), false);
+fillMonthSelect($("#tMonth"), true);
+fillMonthSelect($("#cMonth"), true);
+GMONTHS.forEach((n, i) => $("#gjMonth").add(new Option(n, i + 1)));
+$("#jMonth").addEventListener("change", () => { view.m = +$("#jMonth").value; renderCalendar(); });
+$("#jYear").addEventListener("change", () => { const y = parseInt($("#jYear").value, 10); if (Number.isFinite(y)){ view.y = y; renderCalendar(); } });
+$("#prev").addEventListener("click", () => shiftMonth(-1));
+$("#next").addEventListener("click", () => shiftMonth(1));
+$("#todayBtn").addEventListener("click", () => selectDay(T));
+$("#gjMonth").addEventListener("change", () => { gview.m = +$("#gjMonth").value; renderGreg(); });
+$("#gjYear").addEventListener("change", () => { const y = parseInt($("#gjYear").value, 10); if (Number.isFinite(y)){ gview.y = y; renderGreg(); } });
+$("#gPrev").addEventListener("click", () => shiftGMonth(-1));
+$("#gNext").addEventListener("click", () => shiftGMonth(1));
+$("#gTodayBtn").addEventListener("click", () => selectDay(T));
+route();
+loadLocal(); renderAll();
+setStatus("Saved on this phone. Works offline.");
+idbSet("tasks", store.tasks).catch(() => {});
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").then(() => { setupBackgroundChecks(); checkNotifications(); }).catch(() => {});
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  // the date may have changed while the app sat in the background
+  const now = fromAbs(todayAbs());
+  if (!sameB(now, T)) { location.reload(); return; }
+  checkNotifications();
+});
+
+/* ---------- install prompt ---------- */
+let deferredInstall = null;
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; $("#installBtn").hidden = false; });
+$("#installBtn").addEventListener("click", async () => {
+  if (deferredInstall){ deferredInstall.prompt(); await deferredInstall.userChoice.catch(() => {}); deferredInstall = null; $("#installBtn").hidden = true; }
+});
+window.addEventListener("appinstalled", () => { $("#installBtn").hidden = true; $("#iosHint").hidden = true; });
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (isIOS && !standalone){ let seen = false; try { seen = localStorage.getItem("brownCalendar.iosHint") === "1"; } catch (e) {} if (!seen) $("#iosHint").hidden = false; }
+$("#iosHintClose").addEventListener("click", () => { $("#iosHint").hidden = true; try { localStorage.setItem("brownCalendar.iosHint", "1"); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
